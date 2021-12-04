@@ -1,48 +1,65 @@
-import { useContext } from 'react';
+import { useState } from 'react';
+import { useRouter } from 'next/router';
 import Image from 'next/image';
-import { Box, Icon, Flex } from '@chakra-ui/react';
-import { ScrollMenu, VisibilityContext } from 'react-horizontal-scrolling-menu';
-import { FaArrowAltCircleLeft, FaArrowAltCircleRight } from 'react-icons/fa';
-
-const LeftArrow = () => {
-  const { scrollPrev } = useContext(VisibilityContext);
-
-  return (
-    <Flex justifyContent='center' alignItems='center' marginRight='1'>
-      <Icon
-        as={FaArrowAltCircleLeft}
-        onClick={() => scrollPrev()}
-        fontSize='2xl'
-        cursor='pointer'
-        d={['none','none','none','block']}
-      />
-    </Flex>
-  );
-}
-
-const RightArrow = () => {
-  const { scrollNext } = useContext(VisibilityContext);
-
-  return (
-    <Flex justifyContent='center' alignItems='center' marginLeft='1'>
-      <Icon
-        as={FaArrowAltCircleRight}
-        onClick={() => scrollNext()}
-        fontSize='2xl'
-        cursor='pointer'
-        d={['none','none','none','block']}
-    />
-    </Flex>
-  );
-}
-export default function ImageSrollbar({ data }) {
-  return (
-    <ScrollMenu LeftArrow={LeftArrow} RightArrow={RightArrow} style={{ overflow: 'hidden' }} >
-      {data.map((item) => (
-        <Box width='910px' itemId={item.id} overflow='hidden' p='1' key={item.id}>
-          <Image alt="Property" placeholder="blur" blurDataURL={item.url} src={item.url} width={1000} height={500}  sizes="(max-width: 500px) 100px, (max-width: 1023px) 400px, 1000px" />
+import { Flex, Box, Text, Icon } from '@chakra-ui/react';
+import { BsFilter } from 'react-icons/bs';
+import SearchFilters from '../components/SearchFilters';
+import Property from '../components/Property';
+import noresults from'../assets/images/noresults.svg';
+import { baseUrl, fetchApi } from '../utils/fetchApi';
+const search = ({properties}) => {
+    const [searchFilters, setSearchFilters] = useState(false);
+    const router = useRouter();
+    return (
+        <Box>
+            <Flex
+                cursor="pointer"
+                bg="gray.100" 
+                borderBottom="1px"
+                borderColor ="gray.200"
+                p="2"
+                fontWeight="black"
+                fontSize="lg" 
+                justifyContent="center"
+                alignItems="center"    
+                onClick={()=> setSearchFilters((prevFilters) => !prevFilters)}           
+             >
+                 <Text>Search Property By Filter</Text>
+                 <Icon paddingLeft="2" w="7" as={BsFilter}></Icon>
+            </Flex>
+            {searchFilters && <SearchFilters/>}
+            <Text fontSize="2xl" p ="4" fontWeight="bold">
+                Properties {router.query.purpose}
+            </Text>
+            <Flex flexWrap="wrap" >
+                {properties.map((property) => <Property property={property} key={property.id} />)}
+            </Flex>
+            {properties.length === 0 && 
+                <Flex justifyContent="center"  alignItems="center" flexDirection="column" marginTop="5" marginBottom="5" >
+                    <Image alt="No results" src={noresults}/>
+                    <Text fontSize="2xl" marginTop="3">No Results Found</Text>
+                </Flex>
+            }
         </Box>
-      ))}
-    </ScrollMenu>
-  );
+    )
 }
+export async function getServerSideProps({ query }){
+    const purpose = query.purpose || 'for-rent';
+    const rentFrequency = query.rentFrequency || 'yearly';
+    const minPrice = query.minPrice || '0';
+    const maxPrice = query.maxPrice || '1000000';
+    const roomsMin = query.roomsMin || '0';
+    const bathsMin = query.bathsMin || '0';
+    const sort = query.sort || 'price-desc';
+    const areaMax = query.areaMax || '35000';
+    const locationExternalIDs = query.locationExternalIDs || '5002';
+    const categoryExternalID = query.categoryExternalID || '4';  
+    const data = await fetchApi(`${baseUrl}/properties/list?locationExternalIDs=${locationExternalIDs}&purpose=${purpose}&categoryExternalID=${categoryExternalID}&bathsMin=${bathsMin}&rentFrequency=${rentFrequency}&priceMin=${minPrice}&priceMax=${maxPrice}&roomsMin=${roomsMin}&sort=${sort}&areaMax=${areaMax}`);
+
+  return {
+    props: {
+      properties: data?.hits, 
+    },
+  };
+}
+export default search;
